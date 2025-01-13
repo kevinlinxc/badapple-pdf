@@ -1,5 +1,7 @@
 # modified from https://github.com/ThomasRinsma/pdftris
 import os
+from pathlib import Path
+import cv2
 
 PDF_FILE_TEMPLATE = """
 %PDF-1.6
@@ -140,18 +142,18 @@ var piece_data = [
 	0, 0, -1, 0, 0, 1, 0, -1
 ]
 
-var TICK_INTERVAL = 50;
-var GAME_STEP_TIME = 400;
+var TICK_INTERVAL = 33;
 
 // Globals
 var pixel_fields = [];
 var field = [];
+var previous_field = [];
 var score = 0;
-var time_ms = 0;
-var last_update = 0;
 var interval = 0;
 var frame_number = 0;
 var current_row = 0; // Track the current row to update
+
+//INSERT_FRAME_DATA
 
 // Current piece
 var piece_type = rand() % 7;
@@ -182,14 +184,13 @@ function video_init() {
 	for (var x = 0; x < ###GRID_WIDTH###; ++x) {
 		pixel_fields[x] = [];
 		field[x] = [];
+        previous_field[x] = [];
 		for (var y = 0; y < ###GRID_HEIGHT###; ++y) {
 			pixel_fields[x][y] = this.getField(`P_${x}_${y}`);
 			field[x][y] = 0;
+			previous_field[x][y] = 1;
 		}
 	}
-
-	last_update = time_ms;
-	score = 0;
 
 	// Start timer
 	interval = setInterval(game_tick, TICK_INTERVAL);
@@ -200,15 +201,10 @@ function video_init() {
 	// Show input box and controls
 }
 
-function game_update() {
-	if (time_ms - last_update >= GAME_STEP_TIME) {
-		last_update = time_ms;
-	}
-}
 
 function game_over() {
 	app.clearInterval(interval);
-	app.alert(`Game over! Score: ${score}\nRefresh to restart.`);
+	app.alert(`The End! Refresh to restart.`);
 }
 
 function rotate_piece() {
@@ -304,113 +300,49 @@ function check_for_filled_lines() {
 	}
 }
 
-function lower_piece() {
-	piece_y++;
-
-	var collision = false;
-	for (var square = 0; square < 4; ++square) {
-		var x_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 0];
-		var y_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 1];
-
-		var abs_x = piece_x + x_off;
-		var abs_y = piece_y + y_off;
-
-		if (abs_x < 0 || abs_y < 0 || abs_x >= ###GRID_WIDTH### || abs_y >= ###GRID_HEIGHT###) {
-			collision = true;
-			break;	
-		}
-
-		if (abs_y >= ###GRID_HEIGHT### || field[abs_x][abs_y]) {
-			collision = true;
-			break;
-		}
-	}
-
-	if (collision) {
-		// if at the top, game over
-		if (piece_y == 1) {
-			game_over();
-			return;
-		}
-
-		// add to field
-		piece_y--;
-		for (var square = 0; square < 4; ++square) {
-			var x_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 0];
-			var y_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 1];
-
-			var abs_x = piece_x + x_off;
-			var abs_y = piece_y + y_off;
-
-			if (abs_x < 0 || abs_y < 0 || abs_x >= ###GRID_WIDTH### || abs_y >= ###GRID_HEIGHT###) {
-				// TODO: it is out of bounds, we should nudge it inwards?
-				continue;
-			}
-
-			field[abs_x][abs_y] = true;
-		}
-
-		check_for_filled_lines();
-	}
-}
+const scoreField = this.getField("T_score"); 
 
 function draw_updated_frame_num() {
-	this.getField("T_score").value = `Frame: ${frame_number}`;
+	scoreField.value = `Frame: ${frame_number}`;
 }
 
 function set_pixel(x, y, state) {
-	if (x < 0 || y < 0 || x >= ###GRID_WIDTH### || y >= ###GRID_HEIGHT###) {
-		return;
-	}
 	pixel_fields[x][###GRID_HEIGHT### - 1 - y].hidden = !state;
 }
 
 function draw_field() {
-	for (var x = 0; x < ###GRID_WIDTH###; ++x) {
-		for (var y = 0; y < ###GRID_HEIGHT###; ++y) {
-			set_pixel(x, y, field[x][y]);
-		}
-	}
-}
-
-function draw_current_piece() {
-	for (var square = 0; square < 4; ++square) {
-		var x_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 0];
-		var y_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 1];
-
-		var abs_x = piece_x + x_off;
-		var abs_y = piece_y + y_off;
-
-		set_pixel(abs_x, abs_y, 1);
-	}
+    for (var x = 0; x < ###GRID_WIDTH###; ++x) {
+        for (var y = 0; y < ###GRID_HEIGHT###; ++y) {
+            if (field[x][y] !== previous_field[x][y]) { // Only update changed pixels
+                set_pixel(x, y, field[x][y]);
+                previous_field[x][y] = field[x][y]; // Update the previous state
+            }
+        }
+    }
 }
 
 function draw() {
 	draw_field();
-	draw_current_piece();
 }
 
 function game_tick() {
-    time_ms += TICK_INTERVAL;
 
     // Set the current row to black
-    for (var x = 0; x < ###GRID_WIDTH###; ++x) {
-        for (var y = 0; y < ###GRID_HEIGHT###; ++y) {
-            if (y == current_row) {
-                field[x][y] = 1;
-            } else {
-                field[x][y] = 0;
-            }   
-		}
-    }
+    if (frame_number >= 6572) {
+	    game_over();
+		return;
+	}
+	const current_frame = frames[frame_number];
+	var index = 0
+	for (var y = 0; y < ###GRID_HEIGHT###; ++y) {
+        for (var x = 0; x < ###GRID_WIDTH###; ++x) {
+            field[x][y] = current_frame[index++] == "1" ? 1 : 0;
+        }
+	}
 
     // Increment the row counter
     frame_number++;
 	draw_updated_frame_num();
-    current_row++;
-    if (current_row >= ###GRID_HEIGHT###) {
-        current_row = 0; // Reset to the top row if we reach the bottom
-    }
 
     // Update the game state and draw the field
     draw();
@@ -693,6 +625,32 @@ filled_pdf = PDF_FILE_TEMPLATE.replace("###FIELDS###", fields_text)
 filled_pdf = filled_pdf.replace("###FIELD_LIST###", " ".join([f"{i} 0 R" for i in field_indexes]))
 filled_pdf = filled_pdf.replace("###GRID_WIDTH###", f"{GRID_WIDTH}")
 filled_pdf = filled_pdf.replace("###GRID_HEIGHT###", f"{GRID_HEIGHT}")
+
+
+# Practice encoding the video into 01 strings
+downsample_side_length = 10
+video_path = Path("badapple.mp4")
+cap = cv2.VideoCapture(str(video_path))
+width, height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+ret, frame = cap.read()
+
+frames = []
+while ret:
+    encoding = ""
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # row by row
+    for y in range(0, height, downsample_side_length):
+        for x in range(0, width, downsample_side_length):
+            pixel = frame[y, x]
+            encoding += "0" if pixel > 128 else "1"
+    frames.append(encoding)
+    ret, frame = cap.read()
+
+frames_str = " var frames=[\n"
+for frame in frames:
+    frames_str += f"    \"{frame}\",\n"
+frames_str += "];"
+filled_pdf = filled_pdf.replace("//INSERT_FRAME_DATA", frames_str)
 
 os.makedirs("out", exist_ok=True)
 pdffile = open("out/out.pdf","w")
