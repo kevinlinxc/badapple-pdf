@@ -1,6 +1,4 @@
 # modified from https://github.com/ThomasRinsma/pdftris
-import os
-from pathlib import Path
 import cv2
 
 PDF_FILE_TEMPLATE = """
@@ -85,96 +83,16 @@ function setInterval(cb, ms) {
 	return app.setInterval(evalStr, ms);
 }
 
-// https://gist.github.com/blixt/f17b47c62508be59987b
-var rand_seed = Date.now() % 2147483647;
-function rand() {
-	return rand_seed = rand_seed * 16807 % 2147483647;
-}
-
-// nr of unique rotations per piece
-var piece_rotations = [1, 2, 2, 2, 4, 4, 4];
-
-// Piece data: [piece_nr * 32 + rot_nr * 8 + brick_nr * 2 + j]
-// with rot_nr between 0 and 4
-// with the brick number between 0 and 4
-// and j == 0 for X coord, j == 1 for Y coord
-var piece_data = [
-	// square block
-	0, 0, -1, 0, -1, -1, 0, -1, 
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-
-	// line block
-	0, 0, -2, 0, -1, 0, 1, 0,
-	0, 0, 0, 1, 0, -1, 0, -2,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-
-	// S-block
-	0, 0, -1, -1, 0, -1, 1, 0, 
-	0, 0, 0, 1, 1, 0, 1, -1, 
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-
-	// Z-block
-	0, 0, -1, 0, 0, -1, 1, -1, 
-	0, 0, 1, 1, 1, 0, 0, -1, 
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-
-	// L-block
-	0, 0, -1, 0, -1, -1, 1, 0, 
-	0, 0, 0, 1, 0, -1, 1, -1, 
-	0, 0, -1, 0, 1, 0, 1, 1, 
-	0, 0, -1, 1, 0, 1, 0, -1, 
-
-	// J-block
-	0, 0, -1, 0, 1, 0, 1, -1, 
-	0, 0, 0, 1, 0, -1, 1, 1, 
-	0, 0, -1, 1, -1, 0, 1, 0, 
-	0, 0, 0, 1, 0, -1, -1, -1, 
-
-	// T-block
-	0, 0, -1, 0, 0, -1, 1, 0,  
-	0, 0, 0, 1, 0, -1, 1, 0, 
-	0, 0, -1, 0, 0, 1, 1, 0, 
-	0, 0, -1, 0, 0, 1, 0, -1
-]
-
 var TICK_INTERVAL = 33;
 
 // Globals
 var pixel_fields = [];
 var field = [];
 var previous_field = [];
-var score = 0;
 var interval = 0;
 var frame_number = 0;
-var current_row = 0; // Track the current row to update
 
 //INSERT_FRAME_DATA
-
-// Current piece
-var piece_type = rand() % 7;
-var piece_x = 0;
-var piece_y = 0;
-var piece_rot = 0;
-
-function spawn_new_piece() {
-	piece_type = rand() % 7;
-	piece_x = 4;
-	piece_y = 0;
-	piece_rot = 0;
-}
-
-function set_controls_visibility(state) {
-	this.getField("T_input").hidden = !state;
-	this.getField("B_left").hidden = !state;
-	this.getField("B_right").hidden = !state;
-	this.getField("B_down").hidden = !state;
-	this.getField("B_rotate").hidden = !state;
-}
 
 function video_init() {
 	frame_number = 0;
@@ -197,113 +115,17 @@ function video_init() {
 
 	// Hide start button
 	this.getField("B_start").hidden = true;
-
-	// Show input box and controls
 }
-
 
 function game_over() {
 	app.clearInterval(interval);
-	app.alert(`The End! Refresh to restart.`);
+	app.alert(`The end, refresh to restart! Follow me @linguinelabs on twitter =)`);
 }
 
-function rotate_piece() {
-	piece_rot++;
-	if (piece_rot >= piece_rotations[piece_type]) {
-		piece_rot = 0;
-	}
-
-	// If we're now out of bounds, undo the rotation
-	var illegal = false;
-	for (var square = 0; square < 4; ++square) {
-		var x_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 0];
-		var y_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 1];
-
-		var abs_x = piece_x + x_off;
-		var abs_y = piece_y + y_off;
-
-		if (abs_x < 0 || abs_y < 0 || abs_x >= ###GRID_WIDTH### || abs_y >= ###GRID_HEIGHT###) {
-			illegal = true;
-			break;	
-		}
-	}
-	if (illegal) {
-		piece_rot--;
-		if (piece_rot < 0) {
-			piece_rot = piece_rotations[piece_type] - 1;
-		}
-	}
-}
-
-function is_side_collision() {
-	for (var square = 0; square < 4; ++square) {
-		var x_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 0];
-		var y_off = piece_data[piece_type * 32 + piece_rot * 8 + square * 2 + 1];
-
-		var abs_x = piece_x + x_off;
-		var abs_y = piece_y + y_off;
-
-		// collision with walls
-		if (abs_x < 0 || abs_x >= ###GRID_WIDTH###) {
-			return true;
-		}
-
-		// collision with field blocks
-		if (field[abs_x][abs_y]) {
-			return true;
-		}
-	}
-	return false;
-}
-
-function handle_input(event) {
-	switch (event.change) {
-		case 'w': rotate_piece(); break;
-		case 'a': move_left(); break;
-		case 'd': move_right(); break;
-		case 's': lower_piece(); break;
-	}
-}
-
-function move_left() {
-	piece_x--;
-	if (is_side_collision()) {
-		piece_x++;
-	}
-}
-
-function move_right() {
-	piece_x++;
-	if (is_side_collision()) {
-		piece_x--;
-	}
-}
-
-function check_for_filled_lines() {
-	for (var row = 0; row < ###GRID_HEIGHT###; ++row) {
-		var fill_count = 0;
-		for (var column = 0; column < ###GRID_WIDTH###; ++column) {
-			fill_count += field[column][row];
-		}
-		if (fill_count == ###GRID_WIDTH###) {
-			// increase score
-
-
-			// remove line (shift down)
-			for (var row2 = row; row2 > 0; row2--) {
-				for (var column2 = 0; column2 < ###GRID_WIDTH###; ++column2) {
-					field[column2][row2] = field[column2][row2-1];
-				}
-			}
-
-		}
-	}
-}
-
-const scoreField = this.getField("T_score"); 
+const frameField = this.getField("T_frame"); 
 
 function draw_updated_frame_num() {
-	scoreField.value = `Frame: ${frame_number}`;
+	frameField.value = `Frame: ${frame_number}`;
 }
 
 function set_pixel(x, y, state) {
@@ -321,9 +143,6 @@ function draw_field() {
     }
 }
 
-function draw() {
-	draw_field();
-}
 
 function game_tick() {
 
@@ -345,11 +164,8 @@ function game_tick() {
 	draw_updated_frame_num();
 
     // Update the game state and draw the field
-    draw();
+    draw_field();
 }
-
-// Hide controls to start with
-set_controls_visibility(false);
 
 // Zoom to fit (on FF)
 app.execMenuItem("FitPage");
@@ -589,7 +405,6 @@ def add_button(label, name, x, y, width, height, js):
 	button = button.replace("###IDX###", f"{obj_idx_ctr} 0")
 	button = button.replace("###SCRIPT_IDX###", f"{obj_idx_ctr-2} 0")
 	button = button.replace("###AP_IDX###", f"{obj_idx_ctr-1} 0")
-	#button = button.replace("###LABEL###", label)
 	button = button.replace("###NAME###", name if name else f"B_{obj_idx_ctr}")
 	button = button.replace("###RECT###", f"{x} {y} {x + width} {y + height}")
 	add_field(button)
@@ -609,17 +424,9 @@ def add_text(label, name, x, y, width, height, js):
 	add_field(text)
 
 
-add_button("<", "B_left", GRID_OFF_X + 0, GRID_OFF_Y - 70, 50, 50, "move_left();")
-add_button(">", "B_right", GRID_OFF_X + 60, GRID_OFF_Y - 70, 50, 50, "move_right();")
-add_button("\\\\/", "B_down", GRID_OFF_X + 30, GRID_OFF_Y - 130, 50, 50, "lower_piece();")
-add_button("SPIN", "B_rotate", GRID_OFF_X + 140, GRID_OFF_Y - 70, 50, 50, "rotate_piece();")
-
 add_button("Play", "B_start", GRID_OFF_X + (GRID_WIDTH*PX_SIZE)/2-50, GRID_OFF_Y + (GRID_HEIGHT*PX_SIZE)/2-50, 100, 100, "video_init();")
 
-
-add_text("Type here for keyboard controls (WASD)", "T_input", GRID_OFF_X + 0, GRID_OFF_Y - 200, GRID_WIDTH*PX_SIZE, 50, "handle_input(event);")
-
-add_text("Frame: 0", "T_score", GRID_OFF_X + (GRID_WIDTH * PX_SIZE)/2 - 50, GRID_OFF_Y - 30, 100, 20, "")
+add_text("Frame: 0", "T_frame", GRID_OFF_X + (GRID_WIDTH * PX_SIZE)/2 - 50, GRID_OFF_Y - 30, 100, 20, "")
 
 filled_pdf = PDF_FILE_TEMPLATE.replace("###FIELDS###", fields_text)
 filled_pdf = filled_pdf.replace("###FIELD_LIST###", " ".join([f"{i} 0 R" for i in field_indexes]))
@@ -629,8 +436,8 @@ filled_pdf = filled_pdf.replace("###GRID_HEIGHT###", f"{GRID_HEIGHT}")
 
 # Practice encoding the video into 01 strings
 downsample_side_length = 10
-video_path = Path("badapple.mp4")
-cap = cv2.VideoCapture(str(video_path))
+video_path = "badapple.mp4"
+cap = cv2.VideoCapture(video_path)
 width, height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 ret, frame = cap.read()
 
@@ -652,7 +459,6 @@ for frame in frames:
 frames_str += "];"
 filled_pdf = filled_pdf.replace("//INSERT_FRAME_DATA", frames_str)
 
-os.makedirs("out", exist_ok=True)
 pdffile = open("out/out.pdf","w")
 pdffile.write(filled_pdf)
 pdffile.close()
