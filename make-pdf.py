@@ -150,6 +150,8 @@ var score = 0;
 var time_ms = 0;
 var last_update = 0;
 var interval = 0;
+var frame_number = 0;
+var current_row = 0; // Track the current row to update
 
 // Current piece
 var piece_type = rand() % 7;
@@ -172,8 +174,8 @@ function set_controls_visibility(state) {
 	this.getField("B_rotate").hidden = !state;
 }
 
-function game_init() {
-	spawn_new_piece();
+function video_init() {
+	frame_number = 0;
 
 	// Gather references to pixel field objects
 	// and initialize game state
@@ -196,12 +198,10 @@ function game_init() {
 	this.getField("B_start").hidden = true;
 
 	// Show input box and controls
-	set_controls_visibility(true);
 }
 
 function game_update() {
 	if (time_ms - last_update >= GAME_STEP_TIME) {
-		lower_piece();
 		last_update = time_ms;
 	}
 }
@@ -291,8 +291,7 @@ function check_for_filled_lines() {
 		}
 		if (fill_count == ###GRID_WIDTH###) {
 			// increase score
-			score++;
-			draw_updated_score();
+
 
 			// remove line (shift down)
 			for (var row2 = row; row2 > 0; row2--) {
@@ -352,12 +351,11 @@ function lower_piece() {
 		}
 
 		check_for_filled_lines();
-		spawn_new_piece();
 	}
 }
 
-function draw_updated_score() {
-	this.getField("T_score").value = `Score: ${score}`;
+function draw_updated_frame_num() {
+	this.getField("T_score").value = `Frame: ${frame_number}`;
 }
 
 function set_pixel(x, y, state) {
@@ -393,9 +391,29 @@ function draw() {
 }
 
 function game_tick() {
-	time_ms += TICK_INTERVAL;
-	game_update();
-	draw();
+    time_ms += TICK_INTERVAL;
+
+    // Set the current row to black
+    for (var x = 0; x < ###GRID_WIDTH###; ++x) {
+        for (var y = 0; y < ###GRID_HEIGHT###; ++y) {
+            if (y == current_row) {
+                field[x][y] = 1;
+            } else {
+                field[x][y] = 0;
+            }   
+		}
+    }
+
+    // Increment the row counter
+    frame_number++;
+	draw_updated_frame_num();
+    current_row++;
+    if (current_row >= ###GRID_HEIGHT###) {
+        current_row = 0; // Reset to the top row if we reach the bottom
+    }
+
+    // Update the game state and draw the field
+    draw();
 }
 
 // Hide controls to start with
@@ -664,7 +682,7 @@ add_button(">", "B_right", GRID_OFF_X + 60, GRID_OFF_Y - 70, 50, 50, "move_right
 add_button("\\\\/", "B_down", GRID_OFF_X + 30, GRID_OFF_Y - 130, 50, 50, "lower_piece();")
 add_button("SPIN", "B_rotate", GRID_OFF_X + 140, GRID_OFF_Y - 70, 50, 50, "rotate_piece();")
 
-add_button("Play", "B_start", GRID_OFF_X + (GRID_WIDTH*PX_SIZE)/2-50, GRID_OFF_Y + (GRID_HEIGHT*PX_SIZE)/2-50, 100, 100, "game_init();")
+add_button("Play", "B_start", GRID_OFF_X + (GRID_WIDTH*PX_SIZE)/2-50, GRID_OFF_Y + (GRID_HEIGHT*PX_SIZE)/2-50, 100, 100, "video_init();")
 
 
 add_text("Type here for keyboard controls (WASD)", "T_input", GRID_OFF_X + 0, GRID_OFF_Y - 200, GRID_WIDTH*PX_SIZE, 50, "handle_input(event);")
