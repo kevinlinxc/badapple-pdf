@@ -1,3 +1,6 @@
+# modified from https://github.com/ThomasRinsma/pdftris
+import os
+
 PDF_FILE_TEMPLATE = """
 %PDF-1.6
 
@@ -583,11 +586,11 @@ endobj
 
 # p1 = PIXEL_OBJ.replace("###IDX###", "50 0").replace("###COLOR###","1 0 0").replace("###RECT###", "460 700 480 720")
 
-PX_SIZE = 20
-GRID_WIDTH = 10
-GRID_HEIGHT = 20
-GRID_OFF_X = 200
-GRID_OFF_Y = 350
+PX_SIZE = 12
+GRID_WIDTH = 48
+GRID_HEIGHT = 36
+GRID_OFF_X = 18
+GRID_OFF_Y = 300
 
 fields_text = ""
 field_indexes = []
@@ -620,7 +623,7 @@ for x in range(GRID_WIDTH):
 		add_field(pixel)
 
 def add_button(label, name, x, y, width, height, js):
-	script = STREAM_OBJ;
+	script = STREAM_OBJ
 	script = script.replace("###IDX###", f"{obj_idx_ctr} 0")
 	script = script.replace("###CONTENT###", js)
 	add_field(script)
@@ -632,7 +635,7 @@ def add_button(label, name, x, y, width, height, js):
 	ap_stream = ap_stream.replace("###HEIGHT###", f"{height}")
 	add_field(ap_stream)
 
-	button = BUTTON_OBJ;
+	button = BUTTON_OBJ
 	button = button.replace("###IDX###", f"{obj_idx_ctr} 0")
 	button = button.replace("###SCRIPT_IDX###", f"{obj_idx_ctr-2} 0")
 	button = button.replace("###AP_IDX###", f"{obj_idx_ctr-1} 0")
@@ -642,12 +645,12 @@ def add_button(label, name, x, y, width, height, js):
 	add_field(button)
 
 def add_text(label, name, x, y, width, height, js):
-	script = STREAM_OBJ;
+	script = STREAM_OBJ
 	script = script.replace("###IDX###", f"{obj_idx_ctr} 0")
 	script = script.replace("###CONTENT###", js)
 	add_field(script)
 
-	text = TEXT_OBJ;
+	text = TEXT_OBJ
 	text = text.replace("###IDX###", f"{obj_idx_ctr} 0")
 	text = text.replace("###SCRIPT_IDX###", f"{obj_idx_ctr-1} 0")
 	text = text.replace("###LABEL###", label)
@@ -661,18 +664,19 @@ add_button(">", "B_right", GRID_OFF_X + 60, GRID_OFF_Y - 70, 50, 50, "move_right
 add_button("\\\\/", "B_down", GRID_OFF_X + 30, GRID_OFF_Y - 130, 50, 50, "lower_piece();")
 add_button("SPIN", "B_rotate", GRID_OFF_X + 140, GRID_OFF_Y - 70, 50, 50, "rotate_piece();")
 
-add_button("Start game", "B_start", GRID_OFF_X + (GRID_WIDTH*PX_SIZE)/2-50, GRID_OFF_Y + (GRID_HEIGHT*PX_SIZE)/2-50, 100, 100, "game_init();")
+add_button("Play", "B_start", GRID_OFF_X + (GRID_WIDTH*PX_SIZE)/2-50, GRID_OFF_Y + (GRID_HEIGHT*PX_SIZE)/2-50, 100, 100, "game_init();")
 
 
 add_text("Type here for keyboard controls (WASD)", "T_input", GRID_OFF_X + 0, GRID_OFF_Y - 200, GRID_WIDTH*PX_SIZE, 50, "handle_input(event);")
 
-add_text("Score: 0", "T_score", GRID_OFF_X + GRID_WIDTH*PX_SIZE+10, GRID_OFF_Y + GRID_HEIGHT*PX_SIZE-50, 100, 50, "")
+add_text("Frame: 0", "T_score", GRID_OFF_X + (GRID_WIDTH * PX_SIZE)/2 - 50, GRID_OFF_Y - 30, 100, 20, "")
 
 filled_pdf = PDF_FILE_TEMPLATE.replace("###FIELDS###", fields_text)
 filled_pdf = filled_pdf.replace("###FIELD_LIST###", " ".join([f"{i} 0 R" for i in field_indexes]))
 filled_pdf = filled_pdf.replace("###GRID_WIDTH###", f"{GRID_WIDTH}")
 filled_pdf = filled_pdf.replace("###GRID_HEIGHT###", f"{GRID_HEIGHT}")
 
-pdffile = open("out.pdf","w")
+os.makedirs("out", exist_ok=True)
+pdffile = open("out/out.pdf","w")
 pdffile.write(filled_pdf)
 pdffile.close()

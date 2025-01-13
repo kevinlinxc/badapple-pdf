@@ -8,3 +8,5 @@ wheels/
 
 # Virtual environments
 .venv
+*.mp4
+.DS_Store
