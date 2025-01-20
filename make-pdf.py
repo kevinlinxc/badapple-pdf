@@ -459,6 +459,6 @@ for frame in frames:
 frames_str += "];"
 filled_pdf = filled_pdf.replace("//INSERT_FRAME_DATA", frames_str)
 
-pdffile = open("out/out.pdf","w")
+pdffile = open("out/bad-apple.pdf","w")
 pdffile.write(filled_pdf)
 pdffile.close()
